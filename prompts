@@ -1,0 +1,100 @@
+#!/usr/bin/env node
+
+const fs = require('fs')
+const tty = require('tty')
+const prompts = require('prompts')
+
+if (process.argv.length < 4) {
+  console.error('Usage: prompts <type> <message> [options]')
+  process.exit(1)
+}
+
+const opts = {
+  type: process.argv[2],
+  name: 'value',
+  message: process.argv[3]
+}
+
+const replacements = {
+  instructions: {
+    true: true,
+    false: false
+  }
+}
+
+let current
+
+// Parse arguments to options object.
+for (const arg of process.argv.slice(3)) {
+  if (arg.startsWith('--')) {
+    current = arg.slice(2)
+  } else {
+    if (current in replacements && arg in replacements[current]) {
+      opts[current] = replacements[current][arg]
+    } else {
+      opts[current] = arg
+    }
+  }
+}
+
+// If stdin or stdout is not a TTY, grab the real TTY and force it in options
+// so we get interactive prompts while being piped.
+if (!process.stdin.isTTY || !process.stdout.isTTY) {
+  const flags = !process.stdin.isTTY ? (!process.stdout.isTTY ? 'w+' : 'r') : 'w'
+  const fd = fs.openSync('/dev/tty', flags)
+
+  if (!process.stdin.isTTY) {
+    opts.stdin = new tty.ReadStream(fd)
+  }
+
+  if (!process.stdout.isTTY) {
+    opts.stdout = new tty.WriteStream(fd)
+  }
+}
+
+// If data is piped to us, it's a list of choices, consume it to add to
+// options. For convenience we can separate title and value with `: `.
+if (!process.stdin.isTTY) {
+  opts.choices = fs.readFileSync('/dev/stdin', 'utf8')
+    .split('\n')
+    .filter(line => line !== '')
+    .map(line => {
+      const [title, value] = line.split(': ')
+      return !value ? { title, value: title } : { title, value }
+    })
+}
+
+prompts(opts)
+  .then(response => {
+    if (!('value' in response)) {
+      // Cancelled, abort and propagate to calling script.
+      process.exit(2)
+    }
+
+    let { value } = response
+
+    value = Array.isArray(value) ? value : [value]
+
+    for (let item of value) {
+      if (Array.isArray(item)) {
+        item = item.join(' ')
+      } else if (item instanceof Date) {
+        // Swedish format is conveniently the same as prompts UI (like ISO but
+        // with a space in the middle).
+        item = item.toLocaleString('sv')
+      }
+
+      console.log(item)
+    }
+  })
+  .catch(err => {
+    console.error(err)
+    process.exit(1)
+  })
+  .finally(() => {
+    if (opts.stdin) {
+      // Not sure why we need to do this but otherwise the script hangs
+      // until we press an extra key after the prompt finished.
+      opts.stdin.unref()
+    }
+  })

@@ -1,0 +1,24 @@
+{
+  "name": "prompts-cli",
+  "version": "0.1.0",
+  "description": "Use prompts from shell scripts.",
+  "license": "Unlicense",
+  "author": {
+    "name": "Val",
+    "url": "https://val.codejam.info/"
+  },
+  "bin": {
+    "prompts": "prompts"
+  },
+  "repository": "valeriangalliat/prompts-cli",
+  "scripts": {
+    "lint": "standard --fix prompts",
+    "test": "npm run lint"
+  },
+  "dependencies": {
+    "prompts": "^2.4.1"
+  },
+  "devDependencies": {
+    "standard": "^16.0.3"
+  }
+}
