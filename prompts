@@ -77,7 +77,8 @@ prompts(opts)
 
     for (let item of value) {
       if (Array.isArray(item)) {
-        item = item.join(' ')
+        // Countable multiselect.
+        item = item.reverse().join(' ')
       } else if (item instanceof Date) {
         // Swedish format is conveniently the same as prompts UI (like ISO but
         // with a space in the middle).
